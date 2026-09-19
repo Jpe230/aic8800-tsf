@@ -6576,6 +6576,9 @@ static void __exit rwnx_mod_exit(void)
 {
 	RWNX_DBG(RWNX_FN_ENTRY_STR);
 
+
+	/* Stop the TSF refresher before the SDIO device goes away. */
+	ap_tsf_stop();
 #ifdef AICWF_PCIE_SUPPORT
 	rwnx_platform_unregister_drv();
 #endif
