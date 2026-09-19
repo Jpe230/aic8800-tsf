@@ -57,6 +57,7 @@
 #endif
 #include "aic_priv_cmd.h"
 #include "ap_tsf.h"
+#include <linux/bitops.h>
 #ifdef CONFIG_BAND_STEERING
 #include "aicwf_manager.h"
 #endif
@@ -2855,6 +2856,15 @@ static int rwnx_cfg80211_add_station(struct wiphy *wiphy,
 				sta->uapsd_tids &= ~(1 << tid);
 		}
 		memcpy(sta->mac_addr, mac, ETH_ALEN);
+		/* Apply a rate pinned before this station joined (see
+		 * set_bitrate_mask): an AP is usually configured before the
+		 * client associates. */
+		if (rwnx_hw->ap_fixed_rate) {
+			RWNX_DBG("%s: applying fixed rate 0x%04x to sta %u\n",
+				 __func__, rwnx_hw->ap_fixed_rate, sta->sta_idx);
+			(void)rwnx_send_me_rc_set_rate(rwnx_hw, sta->sta_idx,
+						       rwnx_hw->ap_fixed_rate);
+		}
 #ifdef CONFIG_DEBUG_FS
 		rwnx_dbgfs_register_rc_stat(rwnx_hw, sta);
 #endif
@@ -5361,6 +5371,108 @@ static int rwnx_cfg80211_leave_mesh(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 
+/**
+ * @set_bitrate_mask: pin the TX rate instead of failing.
+ *
+ * This driver has no rate knob for userspace, so `iw dev <iface> set bitrates
+ * ht-mcs-5 6 lgi-5` - what a video host does to make the air deterministic for a
+ * latency-sensitive client - returns -EOPNOTSUPP. The firmware accepts a fixed rate per station
+ * (ME_RC_SET_RATE_REQ, the message behind the rc/fixed_rate_idx debugfs file),
+ * so translate the mask into it: the lowest allowed HT/VHT MCS at 20 MHz with
+ * long GI, which is the most conservative interpretation of the mask. An
+ * unrestricted mask hands control back to the firmware rate control.
+ *
+ * The setting is remembered so stations that associate later - the usual case
+ * for an AP, where the host pins the rate before the client joins - get it too.
+ */
+static int rwnx_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
+					  struct net_device *dev,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+					  unsigned int link_id,
+#endif
+					  const u8 *peer,
+					  const struct cfg80211_bitrate_mask *mask)
+{
+	struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
+	struct rwnx_vif *rwnx_vif = netdev_priv(dev);
+	union rwnx_rate_ctrl_info rate = { .value = 0 };
+	struct rwnx_sta *sta = NULL;
+	u8 ht_mcs = 0;
+	u16 vht_mcs = 0;
+	int band, ret = 0;
+
+	RWNX_DBG(RWNX_FN_ENTRY_STR);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+	/* MLO link id; this driver has a single link per interface. */
+	(void)link_id;
+#endif
+
+	/* Find the band the caller restricted. An all-rates mask on every band
+	 * means the host is not pinning anything. */
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		if (mask->control[band].ht_mcs[0]) {
+			ht_mcs = mask->control[band].ht_mcs[0];
+			vht_mcs = mask->control[band].vht_mcs[0];
+			break;
+		}
+		if (mask->control[band].vht_mcs[0]) {
+			vht_mcs = mask->control[band].vht_mcs[0];
+			break;
+		}
+	}
+
+	/* 0xff / 0xffff mean "every rate allowed", i.e. not a pin. Any other
+	 * non-empty mask pins to its lowest allowed MCS. */
+	if (ht_mcs && ht_mcs != 0xff) {
+		rate.formatModTx = FORMATMOD_HT_MF;
+		rate.mcsIndexTx = __ffs(ht_mcs);
+	} else if (vht_mcs && vht_mcs != 0xffff) {
+		rate.formatModTx = FORMATMOD_VHT;
+		rate.mcsIndexTx = __ffs(vht_mcs);
+	}
+
+	if (rate.value) {
+		/* 20 MHz, long guard interval: the most conservative rate. */
+		rate.bwTx = 0;
+		rate.giAndPreTypeTx = 0;
+		rwnx_hw->ap_fixed_rate = (u16)rate.value;
+		RWNX_DBG("%s: pinning fixed rate 0x%04x\n", __func__,
+			 rwnx_hw->ap_fixed_rate);
+	} else {
+		/* Unrestricted: let the firmware's rate control run again. */
+		rwnx_hw->ap_fixed_rate = 0;
+		rate.value = (u32)-1;
+	}
+
+	if (peer) {
+		sta = rwnx_get_sta(rwnx_hw, peer);
+		if (sta)
+			return rwnx_send_me_rc_set_rate(rwnx_hw, sta->sta_idx,
+							(u16)rate.value);
+		return 0;
+	}
+
+	/* The station list lives in the AP half of the vif union; anything else
+	 * (station mode, P2P) has no per-station rate to pin here. The value is
+	 * still remembered, so an AP started later picks it up. */
+	if (RWNX_VIF_TYPE(rwnx_vif) != NL80211_IFTYPE_AP)
+		return 0;
+
+	/* No peer: apply to the AP's stations, if any have joined already. */
+	spin_lock_bh(&rwnx_hw->cb_lock);
+	list_for_each_entry(sta, &rwnx_vif->ap.sta_list, list) {
+		if (!sta->valid)
+			continue;
+		ret = rwnx_send_me_rc_set_rate(rwnx_hw, sta->sta_idx,
+					       (u16)rate.value);
+		if (ret)
+			break;
+	}
+	spin_unlock_bh(&rwnx_hw->cb_lock);
+	return ret;
+}
+
 static struct cfg80211_ops rwnx_cfg80211_ops = {
 	.add_virtual_intf = rwnx_cfg80211_add_iface,
 	.del_virtual_intf = rwnx_cfg80211_del_iface,
@@ -5387,6 +5499,7 @@ static struct cfg80211_ops rwnx_cfg80211_ops = {
 //	.mgmt_frame_register = rwnx_cfg80211_mgmt_frame_register,
 	.set_wiphy_params = rwnx_cfg80211_set_wiphy_params,
 	.set_txq_params = rwnx_cfg80211_set_txq_params,
+	.set_bitrate_mask = rwnx_cfg80211_set_bitrate_mask,
 	.set_tx_power = rwnx_cfg80211_set_tx_power,
     .get_tx_power = rwnx_cfg80211_get_tx_power,
 	.set_power_mgmt = rwnx_cfg80211_set_power_mgmt,

@@ -751,6 +751,11 @@ struct rwnx_hw {
 	u64 avail_idx_map;
 	u8 vif_started;
 	bool adding_sta;
+
+	/* Fixed TX rate for every station that associates from now on, as a
+	 * packed rwnx_rate_ctrl_info value (0 = none configured). Set through
+	 * cfg80211 set_bitrate_mask; applied to each station as it is added. */
+	u16 ap_fixed_rate;
 	struct rwnx_phy_info phy;
 
 	struct rwnx_radar radar;
