@@ -308,7 +308,11 @@ static int rwnx_send_msg(struct rwnx_hw *rwnx_hw, const void *msg_params,
 
 	//RWNX_DBG(RWNX_FN_ENTRY_STR);
     AICWFDBG(LOGTRACE, "%s (%d)%s reqcfm:%d in_irq:%d in_softirq:%d in_atomic:%d\r\n",
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6, 18, 0))
     __func__, reqid, RWNX_ID2STR(reqid), reqcfm, (int)in_irq(), (int)in_softirq(), (int)in_atomic());
+#else
+    __func__, reqid, RWNX_ID2STR(reqid), reqcfm, (int)in_hardirq(), (int)in_softirq(), (int)in_atomic());
+#endif
 
 
 #ifdef AICWF_USB_SUPPORT
@@ -416,7 +420,11 @@ static int rwnx_send_msg1(struct rwnx_hw *rwnx_hw, const void *msg_params,
 
 //	RWNX_DBG(RWNX_FN_ENTRY_STR);
     printk("%s (%d)%s reqcfm:%d in_irq:%d in_softirq:%d in_atomic:%d\r\n",
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6, 18, 0))
     __func__, reqid, RWNX_ID2STR(reqid), reqcfm, (int)in_irq(), (int)in_softirq(), (int)in_atomic());
+#else
+    __func__, reqid, RWNX_ID2STR(reqid), reqcfm, (int)in_hardirq(), (int)in_softirq(), (int)in_atomic());
+#endif
 
 	rwnx_wakeup_lock(rwnx_hw->ws_tx);
 	msg = container_of((void *)msg_params, struct lmac_msg, param);
@@ -526,6 +534,7 @@ int rwnx_send_add_if (struct rwnx_hw *rwnx_hw, const unsigned char *mac,
 	case NL80211_IFTYPE_P2P_CLIENT:
 		add_if_req_param->p2p = true;
 		// no break
+		__attribute__((__fallthrough__));
 	#endif /* CONFIG_RWNX_FULLMAC */
 	case NL80211_IFTYPE_STATION:
 		add_if_req_param->type = MM_STA;
@@ -539,6 +548,7 @@ int rwnx_send_add_if (struct rwnx_hw *rwnx_hw, const unsigned char *mac,
 	case NL80211_IFTYPE_P2P_GO:
 		add_if_req_param->p2p = true;
 		// no break
+		__attribute__((__fallthrough__));
 	#endif /* CONFIG_RWNX_FULLMAC */
 	case NL80211_IFTYPE_AP:
 		add_if_req_param->type = MM_AP;
@@ -4604,7 +4614,13 @@ int rwnx_send_dbg_trigger_req(struct rwnx_hw *rwnx_hw, char *msg)
 		return -ENOMEM;
 
 	/* Set parameters for the MM_DBG_TRIGGER_REQ message */
-	strncpy(req->error, msg, sizeof(req->error));
+	/*
+	 * strncpy() is gone in 7.2. req->error is a fixed 64-byte field of a
+	 * firmware message that is not NUL-terminated, and the message came
+	 * from kzalloc(), so copying at most the field size is all strncpy()
+	 * did here.
+	 */
+	memcpy(req->error, msg, strnlen(msg, sizeof(req->error)));
 
 	/* Send the MM_DBG_TRIGGER_REQ message to LMAC FW */
 	return rwnx_send_msg(rwnx_hw, req, 0, -1, NULL);

@@ -548,7 +548,11 @@ static int rwnx_plat_tl4_fw_upload(struct rwnx_plat *rwnx_plat, u8 *fw_addr,
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+MODULE_IMPORT_NS("VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver");
+#else
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 #endif
 
 #if 0
@@ -1228,7 +1232,12 @@ static int parse_key_val(const char *str, const char *key, char *val)
 		p--;
 
 	p++;
-	strncpy(val, dst, p -dst);
+	/*
+	 * strncpy() is gone in 7.2. dst..p is a known-length run inside a
+	 * longer string, so strncpy() never reached its NUL and never padded;
+	 * the terminator is the line below. That is a plain memcpy().
+	 */
+	memcpy(val, dst, p - dst);
 	val[p - dst] = 0;
 	return 0;
 }

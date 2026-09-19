@@ -5,6 +5,7 @@
 u8 chip_sub_id = 0;
 u8 chip_mcu_id = 0;
 extern int testmode;
+extern void get_fw_path(char* fw_path);
 
 u32 syscfg_tbl_8800dc[][2] = {
     {0x40500010, 0x00000004},
@@ -2482,6 +2483,7 @@ int aicwf_dpd_result_write_8800dc(void *buf, int buf_len)
     int sum = 0, len = 0;
     char *path = NULL;
     struct file *fp = NULL;
+    char fw_dir[FW_PATH_MAX_LEN];
     loff_t pos = 0;
     mm_segment_t fs;
 
@@ -2493,7 +2495,8 @@ int aicwf_dpd_result_write_8800dc(void *buf, int buf_len)
         return -1;
     }
 
-    len = snprintf(path, FW_PATH_MAX_LEN, "%s/%s", AICBSP_FW_PATH, FW_DPDRESULT_NAME_8800DC);
+    get_fw_path(fw_dir);
+    len = snprintf(path, FW_PATH_MAX_LEN, "%s/%s", fw_dir, FW_DPDRESULT_NAME_8800DC);
     printk("%s\n", path);
 
     fp = filp_open(path, O_RDWR | O_CREAT, 0644);

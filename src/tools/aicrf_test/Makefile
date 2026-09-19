@@ -13,7 +13,7 @@ bt_test: bt_test.o
 	$(CROSS_COMPILE)gcc $+ $(LDFLAGS) -o $@
 
 %.o: %.c
-	$(CROSS_COMPILE)gcc -c $+ -o $@
+	$(CROSS_COMPILE)gcc -g -c $+ -o $@
 
 clean:
 	rm *.o wifi_test bt_test

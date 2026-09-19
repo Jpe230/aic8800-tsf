@@ -14,6 +14,7 @@
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
 #include <linux/semaphore.h>
+#include <linux/vmalloc.h>
 #include "aic_bsp_driver.h"
 
 #define AICBSP_SDIO_NAME                "aicbsp_sdio"

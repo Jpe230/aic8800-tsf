@@ -1,3 +1,5 @@
+EXTRA_CFLAGS += -Wno-unused-variable
+
 MODULE_NAME = aic_btusb
 
 CONFIG_AIC8800_BTUSB_SUPPORT = m

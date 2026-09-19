@@ -2844,7 +2844,7 @@ struct aicbsp_info_t aicbsp_info = {
 
 char aic_fw_path[FW_PATH_MAX];
 #if (CONFIG_BLUEDROID == 0) || defined (CONFIG_PLATFORM_UBUNTU)
-static const char* aic_default_fw_path = "/lib/firmware";
+static const char* aic_default_fw_path = "/lib/firmware/aic8800_fw/USB/aic8800DC";
 #else
 static const char* aic_default_fw_path = "/vendor/etc/firmware";
 #endif

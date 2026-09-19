@@ -37,7 +37,7 @@
 
 
 #ifdef CONFIG_PLATFORM_UBUNTU
-#define CONFIG_BLUEDROID        1 /* bleuz 0, bluedroid 1, lbh 2 */
+#define CONFIG_BLUEDROID        0 /* bleuz 0, bluedroid 1, lbh 2 */
 #else
 #define CONFIG_BLUEDROID        1 /* bleuz 0, bluedroid 1, lbh 2 */
 #endif

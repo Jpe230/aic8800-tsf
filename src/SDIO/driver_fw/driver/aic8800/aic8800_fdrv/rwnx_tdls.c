@@ -115,12 +115,21 @@ rwnx_prep_tdls_direct(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
 
 	switch (action_code) {
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+		skb_put(skb, 2 + sizeof(mgmt->u.action.tdls_discover_resp));
+		mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
+		mgmt->u.action.action_code = WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
+		mgmt->u.action.tdls_discover_resp.dialog_token = dialog_token;
+		mgmt->u.action.tdls_discover_resp.capability =
+			cpu_to_le16(rwnx_get_tdls_sta_capab(rwnx_vif, status_code));
+#else
 		skb_put(skb, 1 + sizeof(mgmt->u.action.u.tdls_discover_resp));
 		mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
 		mgmt->u.action.u.tdls_discover_resp.action_code = WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
 		mgmt->u.action.u.tdls_discover_resp.dialog_token = dialog_token;
 		mgmt->u.action.u.tdls_discover_resp.capability =
 			cpu_to_le16(rwnx_get_tdls_sta_capab(rwnx_vif, status_code));
+#endif
 		break;
 	default:
 		return -EINVAL;
@@ -257,6 +266,7 @@ static u8 rwnx_ac_from_wmm(int ac)
 	switch (ac) {
 	default:
 		WARN_ON_ONCE(1);
+		__attribute__((__fallthrough__));
 	case 0:
 		return AC_BE;
 	case 1:

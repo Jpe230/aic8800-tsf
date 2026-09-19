@@ -940,7 +940,7 @@ static void rwnx_set_vht_capa(struct rwnx_hw *rwnx_hw, struct wiphy *wiphy)
         nss = 1;
     }
 
-	band_2GHz->vht_cap.vht_supported = true;
+    band_2GHz->vht_cap.vht_supported = true;
 		if (rwnx_hw->mod_params->sgi80)
 			band_2GHz->vht_cap.cap |= IEEE80211_VHT_CAP_SHORT_GI_80;
 		if (rwnx_hw->mod_params->stbc_on)
@@ -1663,7 +1663,10 @@ static void rwnx_set_wiphy_params(struct rwnx_hw *rwnx_hw, struct wiphy *wiphy)
                "\n\n%s: CAUTION: USING PERMISSIVE CUSTOM REGULATORY RULES\n\n",
                __func__);
         wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+		/* From kernel 6.5.0, this bit is removed and will be reused later */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 39) || LINUX_VERSION_CODE > KERNEL_VERSION(6, 2, 0))
         wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0) */
         wiphy_apply_custom_regulatory(wiphy, regdomain);
 #elif (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
         memcpy(country_code, default_ccode, sizeof(default_ccode));
@@ -1839,7 +1842,8 @@ void rwnx_custregd(struct rwnx_hw *rwnx_hw, struct wiphy *wiphy)
 // For older kernel version, the custom regulatory is applied before the wiphy
 // registration (in rwnx_set_wiphy_params()), so nothing has to be done here
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+	/* From kernel 6.5.0, this bit is removed and will be reused later */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 39) || LINUX_VERSION_CODE > KERNEL_VERSION(6, 2, 0))
 	wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
 #endif
 	if (!rwnx_hw->mod_params->custregd)

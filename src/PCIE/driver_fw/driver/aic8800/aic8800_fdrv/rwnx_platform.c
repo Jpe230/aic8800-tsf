@@ -49,6 +49,14 @@ extern char aic_fw_path_8800d80x2[FW_PATH_MAX_LEN];
 #define PRINT 2
 #define GET_VALUE 3
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+MODULE_IMPORT_NS("VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver");
+#else
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
+#endif
+
 #ifdef CONFIG_USB_BT
 struct bt_patch_file_name bt_patch_name[] = {
     [PRODUCT_ID_AIC8800D80-PRODUCT_ID_AIC8800D80] = {
@@ -1264,7 +1272,12 @@ static int parse_key_val(const char *str, const char *key, char *val)
 		p--;
 
 	p++;
-	strncpy(val, dst, p -dst);
+	/*
+	 * strncpy() is gone in 7.2. dst..p is a known-length run inside a
+	 * longer string, so strncpy() never reached its NUL and never padded;
+	 * the terminator is the line below. That is a plain memcpy().
+	 */
+	memcpy(val, dst, p - dst);
 	val[p - dst] = 0;
 	return 0;
 }

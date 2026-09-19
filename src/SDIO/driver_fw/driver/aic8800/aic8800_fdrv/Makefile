@@ -356,7 +356,6 @@ ccflags-$(CONFIG_APF) += -DCONFIG_APF
 ccflags-$(CONFIG_AUTO_POWERSAVE) += -DCONFIG_AUTO_POWERSAVE
 
 ccflags-y += -DAIC_TRACE_INCLUDE_PATH=$(src)
-MAKEFLAGS +=-j$(shell nproc)
 
 ########## Platform support list ##########
 CONFIG_PLATFORM_ROCKCHIP ?= n
@@ -411,6 +410,11 @@ KVER ?= $(shell uname -r)
 MODDESTDIR ?= /lib/modules/$(KVER)/kernel/drivers/net/wireless/
 ARCH ?= x86_64
 CROSS_COMPILE ?=
+
+ifeq ($(CONFIG_AW_BSP), y)
+ccflags-y += -DCONFIG_PLATFORM_ALLWINNER
+endif
+
 endif
 ###########################################
 

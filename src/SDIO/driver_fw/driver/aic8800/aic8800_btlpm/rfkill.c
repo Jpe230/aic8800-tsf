@@ -18,8 +18,11 @@
 #include <linux/gpio.h>
 #include <linux/ioport.h>
 #include <linux/clk.h>
-#include <linux/of_gpio.h>
 #include <linux/version.h>
+/* of_gpio.h is gone in 7.1, and nothing here ever used it. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0)
+#include <linux/of_gpio.h>
+#endif
 #include "aic_bsp_export.h"
 
 static struct rfkill *bt_rfk;

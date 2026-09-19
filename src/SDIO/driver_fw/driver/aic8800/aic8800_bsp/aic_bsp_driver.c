@@ -34,6 +34,7 @@
 
 extern int adap_test;
 extern char aic_fw_path[FW_PATH_MAX];
+extern void get_fw_path(char* fw_path);
 extern struct aic_sdio_dev *aicbsp_sdiodev;
 
 static void cmd_dump(const struct rwnx_cmd *cmd)
@@ -476,7 +477,11 @@ void rwnx_rx_handle_msg(struct aic_sdio_dev *sdiodev, struct ipc_e2a_msg *msg)
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+MODULE_IMPORT_NS("VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver");
+#else
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 #endif
 
 #define MD5(x) x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15]
@@ -533,6 +538,7 @@ int rwnx_load_firmware(u32 **fw_buf, const char *name, struct device *device)
 	void *buffer = NULL;
 	char *path = NULL;
 	struct file *fp = NULL;
+	char fw_dir[AICBSP_FW_PATH_MAX];
 	int size = 0, len = 0;// i = 0;
 	ssize_t rdlen = 0;
 	//u32 *src = NULL, *dst = NULL;
@@ -557,11 +563,8 @@ int rwnx_load_firmware(u32 **fw_buf, const char *name, struct device *device)
 		return -1;
 	}
 
-    if(strlen(aic_fw_path) > 0){
-        len = snprintf(path, AICBSP_FW_PATH_MAX, "%s/%s", aic_fw_path, name);
-    }else{
-	    len = snprintf(path, AICBSP_FW_PATH_MAX, "%s/%s", AICBSP_FW_PATH, name);
-    }
+	get_fw_path(fw_dir);
+	len = snprintf(path, AICBSP_FW_PATH_MAX, "%s/%s", fw_dir, name);
 	if (len >= AICBSP_FW_PATH_MAX) {
 		printk("%s: %s file's path too long\n", __func__, name);
 		*fw_buf = NULL;
@@ -1089,6 +1092,7 @@ int is_file_exist(char* name)
 {
     char *path = NULL;
     struct file *fp = NULL;
+    char fw_dir[FW_PATH_MAX_LEN];
     int len;
 
     path = __getname();
@@ -1097,7 +1101,8 @@ int is_file_exist(char* name)
         return -1;
     }
 
-    len = snprintf(path, FW_PATH_MAX_LEN, "%s/%s", AICBSP_FW_PATH, name);
+    get_fw_path(fw_dir);
+    len = snprintf(path, FW_PATH_MAX_LEN, "%s/%s", fw_dir, name);
 
     fp = filp_open(path, O_RDONLY, 0);
     if (IS_ERR(fp)) {
@@ -2233,7 +2238,7 @@ int aicbsp_get_feature(struct aicbsp_feature_t *feature, char *fw_path)
 	feature->fwlog_en   = aicbsp_info.fwlog_en;
 	feature->irqf       = aicbsp_info.irqf;
 	if(fw_path != NULL){
-		sprintf(fw_path,"%s", AICBSP_FW_PATH);
+		get_fw_path(fw_path);
 	}
     
     sdio_dbg("%s, set FEATURE_SDIO_CLOCK %d MHz\n", __func__, feature->sdio_clock/1000000);

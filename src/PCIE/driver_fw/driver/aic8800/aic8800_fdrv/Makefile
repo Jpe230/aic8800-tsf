@@ -6,6 +6,15 @@ EXTRA_CFLAGS += -Wno-pointer-to-int-cast
 #EXTRA_CFLAGS += -Wno-maybe-uninitialized
 #EXTRA_CFLAGS += -Wno-unused-variable
 
+ccflags-y += -Wno-implicit-fallthrough
+ccflags-y += -Wno-unused-function
+ccflags-y += -Wno-unused-variable
+ccflags-y += -Wno-comment
+ccflags-y += -Wno-format
+ccflags-y += -Wno-declaration-after-statement
+ccflags-y += -Wno-misleading-indentation
+ccflags-y += -Wno-parentheses
+
 RWNX_VERS_NUM := 6.4.3.0
 
 CONFIG_COUNTRY_CODE = "00"
@@ -323,8 +332,6 @@ CONFIG_PLATFORM_AMLOGIC ?= n
 CONFIG_PLATFORM_UBUNTU ?= y
 
 ccflags-y += -DAIC_TRACE_INCLUDE_PATH=$(src)
-
-MAKEFLAGS +=-j$(shell nproc)
 
 ifeq ($(CONFIG_PLATFORM_ROCKCHIP), y)
 #KDIR ?= /home/yaya/E/Rockchip/3229/Android7/RK3229_ANDROID7.1_v1.01_20170914/rk3229_Android7.1_v1.01_xml0914/kernel
