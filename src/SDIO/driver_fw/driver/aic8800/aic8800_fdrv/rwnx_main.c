@@ -57,6 +57,7 @@
 #endif
 #include "aic_priv_cmd.h"
 #include "ap_tsf.h"
+#include "ap_rate_counters.h"
 #include <linux/bitops.h>
 #ifdef CONFIG_BAND_STEERING
 #include "aicwf_manager.h"
@@ -1736,6 +1737,9 @@ static struct rwnx_vif *rwnx_interface_add(struct rwnx_hw *rwnx_hw,
         if (ap_tsf && rwnx_hw->sdiodev &&
             rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80)
                 ndev->sysfs_groups[0] = &ap_tsf_group;
+        if (ap_rate_counters && rwnx_hw->sdiodev &&
+            rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80)
+                ndev->sysfs_groups[1] = &ap_rate_counters_group;
         if (cfg80211_register_netdevice(ndev))
 #else
         if (register_netdevice(ndev))
