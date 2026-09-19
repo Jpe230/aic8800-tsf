@@ -58,6 +58,7 @@
 #include "aic_priv_cmd.h"
 #include "ap_tsf.h"
 #include "ap_rate_counters.h"
+#include "ap_drc_sysfs.h"
 #include <linux/bitops.h>
 #ifdef CONFIG_BAND_STEERING
 #include "aicwf_manager.h"
@@ -1744,12 +1745,17 @@ static struct rwnx_vif *rwnx_interface_add(struct rwnx_hw *rwnx_hw,
 	 * for LLC/SNAP (8) and the IPv4 header (20) inside the MSDU limit. */
 	ndev->max_mtu = 2304 - 8 - 20;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
-        if (ap_tsf && rwnx_hw->sdiodev &&
-            rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80)
-                ndev->sysfs_groups[0] = &ap_tsf_group;
-        if (ap_rate_counters && rwnx_hw->sdiodev &&
-            rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80)
-                ndev->sysfs_groups[1] = &ap_rate_counters_group;
+        /* Both AP diagnostics are opt-in, but a driver only owns sysfs_groups[0];
+         * see ap_drc_sysfs.h for why index 1 is never usable. */
+        if (rwnx_hw->sdiodev &&
+            rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80) {
+                if (ap_tsf && ap_rate_counters)
+                        ndev->sysfs_groups[0] = &ap_drc_group;
+                else if (ap_tsf)
+                        ndev->sysfs_groups[0] = &ap_tsf_only_group;
+                else if (ap_rate_counters)
+                        ndev->sysfs_groups[0] = &ap_rate_counters_only_group;
+        }
         if (cfg80211_register_netdevice(ndev))
 #else
         if (register_netdevice(ndev))

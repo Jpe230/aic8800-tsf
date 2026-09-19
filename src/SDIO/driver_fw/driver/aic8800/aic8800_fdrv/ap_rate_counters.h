@@ -114,12 +114,3 @@ static const struct bin_attribute ap_rate_counters_attr = {
 	.size = 4096,
 	.read = ap_rate_counters_read,
 };
-
-static const struct bin_attribute *const ap_rate_counters_attrs[] = {
-	&ap_rate_counters_attr,
-	NULL,
-};
-
-static const struct attribute_group ap_rate_counters_group = {
-	.bin_attrs = ap_rate_counters_attrs,
-};

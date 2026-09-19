@@ -200,12 +200,3 @@ static const struct bin_attribute ap_tsf_attr = {
 	.size = sizeof(u64),
 	.read = ap_tsf_read,
 };
-
-static const struct bin_attribute *const ap_tsf_attrs[] = {
-	&ap_tsf_attr,
-	NULL,
-};
-
-static const struct attribute_group ap_tsf_group = {
-	.bin_attrs = ap_tsf_attrs,
-};
