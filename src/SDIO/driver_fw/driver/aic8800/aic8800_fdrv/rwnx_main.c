@@ -1734,6 +1734,15 @@ static struct rwnx_vif *rwnx_interface_add(struct rwnx_hw *rwnx_hw,
 	} else
 		vif->use_4addr = false;
 
+
+	/* 802.11 carries MSDUs up to 2304 bytes, and the SDIO TX path already
+	 * spends several 1536-byte buffers on a single frame (see the buffer
+	 * credit wait in aicwf_sdio_bus_txdata), so the 1500-byte ceiling here is
+	 * netdev policy rather than a data-path limit. Some hosts stream an
+	 * 1800-byte MTU, which the kernel otherwise rejects with EINVAL because
+	 * this driver sets no max_mtu and provides no ndo_change_mtu. Leave room
+	 * for LLC/SNAP (8) and the IPv4 header (20) inside the MSDU limit. */
+	ndev->max_mtu = 2304 - 8 - 20;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
         if (ap_tsf && rwnx_hw->sdiodev &&
             rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80)
