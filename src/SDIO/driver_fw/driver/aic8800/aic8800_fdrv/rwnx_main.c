@@ -56,6 +56,7 @@
 #include "aic_btsdio.h"
 #endif
 #include "aic_priv_cmd.h"
+#include "ap_tsf.h"
 #ifdef CONFIG_BAND_STEERING
 #include "aicwf_manager.h"
 #endif
@@ -1732,6 +1733,9 @@ static struct rwnx_vif *rwnx_interface_add(struct rwnx_hw *rwnx_hw,
 		vif->use_4addr = false;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
+        if (ap_tsf && rwnx_hw->sdiodev &&
+            rwnx_hw->sdiodev->chipid == PRODUCT_ID_AIC8800D80)
+                ndev->sysfs_groups[0] = &ap_tsf_group;
         if (cfg80211_register_netdevice(ndev))
 #else
         if (register_netdevice(ndev))
@@ -6608,4 +6612,3 @@ MODULE_DESCRIPTION(RW_DRV_DESCRIPTION);
 MODULE_VERSION(RWNX_VERS_MOD);
 MODULE_AUTHOR(RW_DRV_COPYRIGHT " " RW_DRV_AUTHOR);
 MODULE_LICENSE("GPL");
-
